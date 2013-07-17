@@ -7,6 +7,7 @@ module Fluent
     config_param :port,   :integer, :default => 6379
     config_param :db,     :integer, :default => 0
     config_param :format, :string,  :default => 'json'
+    config_param :channel, :string, :default => '${tag}'
 
     attr_reader :redis
 
@@ -44,13 +45,23 @@ module Fluent
         chunk.msgpack_each do |(tag, time, record)|
           record["time"] = time
 
+          send_channel =  @channel.gsub(/\${(.*?)}/){ |s|
+            case $1
+            when 'tag'
+              tag
+            when /record\[['"](.*?)['"]\]/
+              record[$1]
+            end
+          }
+
           if @format == "json"
-            @redis.publish(tag, record.to_json)
+            @redis.publish(send_channel, record.to_json)
           elsif @format == "msgpack"
-            @redis.publish(tag, record.to_msgpack)
+            @redis.publish(send_channel, record.to_msgpack)
           end
         end
       end
     end
   end
+
 end

@@ -34,6 +34,9 @@ class RedisPublishOutputTest < Test::Unit::TestCase
   CONFIG3 = %[
     path /tmp/foo.sock
   ]
+  CONFIG4 = %[
+    channel ${tag}:${record['foo']}
+  ]
 
   def create_driver(conf)
     Fluent::Test::BufferedOutputTestDriver.new(Fluent::RedisPublishOutput).configure(conf)
@@ -69,4 +72,16 @@ class RedisPublishOutputTest < Test::Unit::TestCase
     assert_equal "test", $channel
     assert_equal(%Q[{"foo":"bar","time":#{time}}], $message)
   end
+
+  def test_channel_str
+    d = create_driver(CONFIG4)
+
+    time = Time.parse("2011-01-02 13:14:15 UTC").to_i
+    d.emit({ "foo" => "bar" }, time)
+    d.run
+
+    assert_equal "test:bar", $channel
+    assert_equal(%Q[{"foo":"bar","time":#{time}}], $message)
+  end
+
 end
